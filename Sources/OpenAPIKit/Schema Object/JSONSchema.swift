@@ -37,7 +37,7 @@ public struct JSONSchema: JSONSchemaContext, HasWarnings, VendorExtendable {
 
     /// The null type, which replaces the functionality of the `nullable` property from
     /// previous versions of the OpenAPI specification.
-    public static let null: Self = .init(schema: .null)
+    public static let null: Self = .init(schema: .null(.init(nullable: true)))
     public static func boolean(_ core: CoreContext<JSONTypeFormat.BooleanFormat>) -> Self {
         .init(schema: .boolean(core))
     }
@@ -79,7 +79,7 @@ public struct JSONSchema: JSONSchemaContext, HasWarnings, VendorExtendable {
     public enum Schema: Equatable {
         /// The null type, which replaces the functionality of the `nullable` property from
         /// previous versions of the OpenAPI specification.
-        case null
+        case null(CoreContext<JSONTypeFormat.AnyFormat>)
         case boolean(CoreContext<JSONTypeFormat.BooleanFormat>)
         case number(CoreContext<JSONTypeFormat.NumberFormat>, NumericContext)
         case integer(CoreContext<JSONTypeFormat.IntegerFormat>, IntegerContext)
@@ -1925,7 +1925,7 @@ extension JSONSchema: Decodable {
         }
 
         if typeHint == .null {
-            value = .null
+            value = .null(.init(nullable: true))
 
         } else if typeHint == .integer || typeHint == .number || (typeHint == nil && !numericOrIntegerContainer.allKeys.isEmpty) {
             if typeHint == .integer {
