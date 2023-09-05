@@ -11,7 +11,9 @@ extension OpenAPI {
     /// OpenAPI Spec "Parameter Object"
     /// 
     /// See [OpenAPI Parameter Object](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.1.0.md#parameter-object).
-    public struct Parameter: Equatable, CodableVendorExtendable {
+    public struct Parameter: Equatable, CodableVendorExtendable, HasWarnings {
+        public let warnings: [Warning]
+
         public var name: String
 
         /// OpenAPI Spec "in" property determines the `Context`.
@@ -68,6 +70,7 @@ extension OpenAPI {
             self.description = description
             self.deprecated = deprecated
             self.vendorExtensions = vendorExtensions
+            self.warnings = []
         }
 
         /// Create a parameter with a `SchemaContext`.
@@ -85,6 +88,7 @@ extension OpenAPI {
             self.description = description
             self.deprecated = deprecated
             self.vendorExtensions = vendorExtensions
+            self.warnings = []
         }
 
         /// Create a parameter with a `JSONSchema` and the default
@@ -103,6 +107,7 @@ extension OpenAPI {
             self.description = description
             self.deprecated = deprecated
             self.vendorExtensions = vendorExtensions
+            self.warnings = []
         }
 
         /// Create a parameter with a reference to a `JSONSchema`
@@ -121,6 +126,7 @@ extension OpenAPI {
             self.description = description
             self.deprecated = deprecated
             self.vendorExtensions = vendorExtensions
+            self.warnings = []
         }
 
         /// Create a parameter with a `Content.Map`.
@@ -138,6 +144,20 @@ extension OpenAPI {
             self.description = description
             self.deprecated = deprecated
             self.vendorExtensions = vendorExtensions
+            self.warnings = []
+        }
+
+        public static func == (lhs: OpenAPI.Parameter, rhs: OpenAPI.Parameter) -> Bool {
+            let half = lhs.name == rhs.name
+                && lhs.context == rhs.context
+                && lhs.description == rhs.description
+                && lhs.deprecated == rhs.deprecated
+                && lhs.schemaOrContent == rhs.schemaOrContent
+
+            return half
+                && lhs.vendorExtensions == rhs.vendorExtensions
+                && lhs.required == rhs.required
+                && lhs.location == rhs.location
         }
     }
 }
@@ -307,8 +327,10 @@ extension OpenAPI.Parameter: Decodable {
         let maybeSchema: SchemaContext?
         if container.contains(.schema) {
             maybeSchema = try SchemaContext(from: decoder, for: context)
+            self.warnings = maybeSchema?.warnings ?? []
         } else {
             maybeSchema = nil
+            self.warnings = []
         }
 
         switch (maybeContent, maybeSchema) {

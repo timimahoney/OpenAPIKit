@@ -1485,4 +1485,77 @@ final class ValidatorTests: XCTestCase {
             XCTAssertEqual(errors?.values.first?.codingPathString, ".paths[\'/test\'].get.responses.200.content")
         }
     }
+
+    func test_collectsParameterStyleWarningsNotStrict() throws {
+        let docData = """
+        {
+          "info": {"title": "test", "version": "1.0"},
+          "openapi": "3.1.0",
+          "paths": {
+            "test": {
+              "get": {
+                "parameters": [
+                  {
+                    "name": "p1",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    },
+                    "style": "FORM"
+                  }
+                ]
+              }
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let doc = try orderUnstableDecode(OpenAPI.Document.self, from: docData)
+
+        let warnings = try doc.validate(strict: false)
+
+        XCTAssertEqual(warnings.count, 1)
+        XCTAssertEqual(
+            warnings.first?.localizedDescription,
+            "Inconsistency encountered when parsing `Style`: The value \'FORM\' needed to be coerced into the style \'form\'."
+        )
+        XCTAssertEqual(warnings.first?.codingPathString, ".paths.test.get.parameters[0]")
+    }
+
+    func test_collectsParameterStyleWarningsStrict() throws {
+        let docData = """
+        {
+          "info": {"title": "test", "version": "1.0"},
+          "openapi": "3.1.0",
+          "paths": {
+            "test": {
+              "get": {
+                "parameters": [
+                  {
+                    "name": "p1",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    },
+                    "style": "FORM"
+                  }
+                ]
+              }
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let doc = try orderUnstableDecode(OpenAPI.Document.self, from: docData)
+
+        XCTAssertThrowsError(try doc.validate(strict: true)) { error in
+            let errors = error as? ValidationErrorCollection
+            XCTAssertEqual(errors?.values.count, 1)
+            XCTAssertEqual(
+                errors?.localizedDescription,
+            "Inconsistency encountered when parsing `Style`: The value \'FORM\' needed to be coerced into the style \'form\'. at path: .paths.test.get.parameters[0]"
+            )
+            XCTAssertEqual(errors?.values.first?.codingPathString, ".paths.test.get.parameters[0]")
+        }
+    }
 }

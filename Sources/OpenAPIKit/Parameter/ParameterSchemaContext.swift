@@ -12,7 +12,7 @@ extension OpenAPI.Parameter {
     ///
     /// See [OpenAPI Parameter Object](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.1.0.md#parameter-object)
     /// and [OpenAPI Style Values](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.1.0.md#style-values).
-    public struct SchemaContext: Equatable {
+    public struct SchemaContext: Equatable, HasWarnings {
         public let style: Style
         public let explode: Bool
         public let allowReserved: Bool //defaults to false
@@ -21,6 +21,8 @@ extension OpenAPI.Parameter {
         public let example: AnyCodable?
         public let examples: OpenAPI.Example.Map?
 
+        public let warnings: [Warning]
+
         public init(_ schema: JSONSchema,
                     style: Style,
                     explode: Bool,
@@ -32,6 +34,7 @@ extension OpenAPI.Parameter {
             self.schema = .init(schema)
             self.example = example
             self.examples = nil
+            self.warnings = []
         }
 
         public init(_ schema: JSONSchema,
@@ -45,6 +48,7 @@ extension OpenAPI.Parameter {
             self.examples = nil
 
             self.explode = style.defaultExplode
+            self.warnings = []
         }
 
         public init(schemaReference: OpenAPI.Reference<JSONSchema>,
@@ -58,6 +62,7 @@ extension OpenAPI.Parameter {
             self.schema = .init(schemaReference)
             self.example = example
             self.examples = nil
+            self.warnings = []
         }
 
         public init(schemaReference: OpenAPI.Reference<JSONSchema>,
@@ -71,6 +76,7 @@ extension OpenAPI.Parameter {
             self.examples = nil
 
             self.explode = style.defaultExplode
+            self.warnings = []
         }
 
         public init(_ schema: JSONSchema,
@@ -84,6 +90,7 @@ extension OpenAPI.Parameter {
             self.schema = .init(schema)
             self.examples = examples
             self.example = examples.flatMap(OpenAPI.Content.firstExample(from:))
+            self.warnings = []
         }
 
         public init(_ schema: JSONSchema,
@@ -97,6 +104,7 @@ extension OpenAPI.Parameter {
             self.example = examples.flatMap(OpenAPI.Content.firstExample(from:))
 
             self.explode = style.defaultExplode
+            self.warnings = []
         }
 
         public init(schemaReference: OpenAPI.Reference<JSONSchema>,
@@ -110,6 +118,7 @@ extension OpenAPI.Parameter {
             self.schema = .init(schemaReference)
             self.examples = examples
             self.example = examples.flatMap(OpenAPI.Content.firstExample(from:))
+            self.warnings = []
         }
 
         public init(schemaReference: OpenAPI.Reference<JSONSchema>,
@@ -123,6 +132,16 @@ extension OpenAPI.Parameter {
             self.example = examples.flatMap(OpenAPI.Content.firstExample(from:))
 
             self.explode = style.defaultExplode
+            self.warnings = []
+        }
+
+        public static func == (lhs: OpenAPI.Parameter.SchemaContext, rhs: OpenAPI.Parameter.SchemaContext) -> Bool {
+            lhs.style == rhs.style 
+                && lhs.explode == rhs.explode 
+                && lhs.allowReserved == rhs.allowReserved
+                && lhs.schema == rhs.schema
+                && lhs.example == rhs.example 
+                && lhs.examples == rhs.examples 
         }
     }
 }
@@ -202,8 +221,23 @@ extension OpenAPI.Parameter.SchemaContext {
 
         schema = try container.decode(Either<OpenAPI.Reference<JSONSchema>, JSONSchema>.self, forKey: .schema)
 
-        let style = try container.decodeIfPresent(Style.self, forKey: .style) ?? Style.default(for: location)
-        self.style = style
+        if let stylePackage = try container.decodeIfPresent(Shared.LenientSchemaContextStyle.self, forKey: .style) {
+            self.style = stylePackage.style
+            if let warning = stylePackage.warning {
+                self.warnings = [
+                    .underlyingError(
+                        InconsistencyError(
+                            subjectName: "Style", details: warning, codingPath: decoder.codingPath
+                        )
+                    )
+                ]
+            } else {
+                self.warnings = []
+            }
+        } else {
+            self.style = Style.default(for: location)
+            self.warnings = []
+        }
 
         explode = try container.decodeIfPresent(Bool.self, forKey: .explode) ?? style.defaultExplode
 

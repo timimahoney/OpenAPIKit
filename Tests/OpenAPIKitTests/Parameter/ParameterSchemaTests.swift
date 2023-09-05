@@ -424,6 +424,33 @@ extension ParameterSchemaTests {
         )
     }
 
+    /// should be a warning but not an error.
+    func test_styleOverrideWrongCasing_decode() throws {
+        let schemaData =
+        """
+        {
+          "location" : "path",
+          "schema" : {
+            "schema" : {
+              "type" : "string"
+            },
+            "style" : "FORM"
+          }
+        }
+        """.data(using: .utf8)!
+
+        let schema = try orderUnstableDecode(SchemaWrapper.self, from: schemaData).schema
+
+        XCTAssertEqual(
+            schema,
+            Schema(
+                .string,
+                style: .form
+            )
+        )
+        XCTAssertEqual(schema.warnings.map { $0.localizedDescription }, ["The value 'FORM' needed to be coerced into the style 'form'"])
+    }
+
     func test_explodeOverride_encode() throws {
         let schema = Schema(
             .string,
