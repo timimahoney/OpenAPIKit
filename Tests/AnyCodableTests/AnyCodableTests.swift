@@ -13,6 +13,42 @@ class AnyCodableTests: XCTestCase {
         let _: AnyCodable = ["hi": "there"]
     }
 
+    func testEqualityFromJSON() throws {
+        let json = """
+        {
+            "boolean": true,
+                "integer": 1,
+                "string": "string",
+                "array": [1, 2, 3],
+                "nested": {
+                    "a": "alpha",
+                    "b": "bravo",
+                    "c": "charlie"
+                }
+        }
+        """.data(using: .utf8)!
+            let decoder = JSONDecoder()
+            let anyCodable0 = try decoder.decode(AnyCodable.self, from: json)
+            let anyCodable1 = try decoder.decode(AnyCodable.self, from: json)
+            XCTAssertEqual(anyCodable0, anyCodable1)
+    }
+
+    struct CustomEncodable: Encodable {
+        let value1: String
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode("hi hi hi " + value1)
+        }
+    }
+
+    func test_encodable() throws {
+        let value = CustomEncodable(value1: "hello")
+        let anyCodable = AnyCodable(value)
+        let thing = try JSONEncoder().encode(anyCodable)
+        XCTAssertEqual(String(data: thing, encoding: .utf8)!, "\"hi hi hi hello\"")
+    }
+
     func testEquality() throws {
         XCTAssertEqual(AnyCodable(()), AnyCodable(()))
         XCTAssertEqual(AnyCodable(true), AnyCodable(true))
